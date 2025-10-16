@@ -9,5 +9,5 @@ public interface RatingRepository {
     Rating save(Rating rating);
 
     List<Rating> findByMediaId(String mediaId);
-    Optional<Rating> findByyUserIdAndMediaId(String userId, String mediaId);
+    Optional<Rating> findByUserIdAndMediaId(String userId, String mediaId);
 }
