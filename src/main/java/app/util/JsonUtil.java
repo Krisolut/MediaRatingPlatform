@@ -28,9 +28,10 @@ public final class JsonUtil {
         return MAPPER.readValue(inputStream, clazz);
     }
 
+    // Sendet eine JSON
     public static void sendJsonResponse(HttpExchange exchange, int statusCode, Object body) throws IOException {
         byte[] payload = serialize(body);
-        exchange.getResponseGeaders().set("Content-Type", APPLICATION_JSON + "; charset=UTF-8");
+        exchange.getResponseHeaders().set("Content-Type", APPLICATION_JSON + "; charset=UTF-8");
         exchange.sendResponseHeaders(statusCode, payload.length);
         try (OutputStream os = exchange.getResponseBody()) {
             os.write(payload);
@@ -41,13 +42,13 @@ public final class JsonUtil {
 
     // Hilfsmethode für Antworten ohne Body (z.B. Delete, No Content)
     public static void sendEmptyResponse(HttpExchange exchange, int statusCode) throws IOException {
-        exchange,getResponseHeaders().set("Content-Type", APPLICATION_JSON + "; charset=UTF-8");
-        exchange.sendResponseHeaders(statusCode, -1); // -1 indicates no body
+        exchange.getResponseHeaders().set("Content-Type", APPLICATION_JSON + "; charset=UTF-8");
+        exchange.sendResponseHeaders(statusCode, -1);
         exchange.close();
     }
 
     // Fehlermeldungen
-    public static void sendError(HttpExchange, int statusCode, String message, String code) throws IOException {
+    public static void sendError(HttpExchange exchange, int statusCode, String message, String code) throws IOException {
         Map<String, Object> error = new HashMap<>();
         error.put("error", message);
         error.put("code", code);
@@ -55,6 +56,7 @@ public final class JsonUtil {
         sendJsonResponse(exchange, statusCode, error);
     }
 
+    // ERstellt ein Byte Array aus einem Objekt
     private static byte[] serialize(Object body) throws JsonProcessingException {
         if (body instanceof byte[]) {
             return (byte[]) body;
