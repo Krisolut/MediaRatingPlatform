@@ -14,7 +14,7 @@ public class User {
         this.id = Objects.requireNonNull(id);
         this.username = Objects.requireNonNull(username);
         this.passwordHash = Objects.requireNonNull(passwordHash);
-        this.displayName = Objects.requireNonNull(displayName);
+        this.displayName = displayName;
         this.createdAt = Objects.requireNonNull(createdAt);
     }
 
