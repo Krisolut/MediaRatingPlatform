@@ -20,7 +20,7 @@ public class Router implements HttpHandler {
 
     public void register(String method, String path, RouteHandler handler, boolean requiresAuth) {
         routes.computeIfAbsent(path, ignored -> new HashMap<>())
-              .put(path, new RouteDefinition(handler, requiresAuth));
+              .put(method.toUpperCase(), new RouteDefinition(handler, requiresAuth));
     }
 
     @Override

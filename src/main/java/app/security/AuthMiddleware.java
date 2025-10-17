@@ -16,6 +16,7 @@ public class AuthMiddleware {
             String authHeader = exchange.getRequestHeaders().getFirst("Authorization");
             if (authHeader == null || authHeader.isBlank()) {
                 JsonUtil.sendError(exchange, 401, "Missing Authorization header", "UNAUTHORIZED");
+                return;
             }
 
             String[] segments = authHeader.split(" ");

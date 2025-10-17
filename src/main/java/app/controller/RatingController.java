@@ -63,6 +63,7 @@ public class RatingController {
                 JsonUtil.sendError(exchange, 400, "Invalid rating data", "BAD_REQUEST");
                 return;
             }
+            JsonUtil.sendJsonResponse(exchange, 200, toDto(created.get()));
         } catch (RatingService.DuplicateRatingException ex) {
             JsonUtil.sendError(exchange, 409, ex.getMessage(), "CONFLICT");
             return;
