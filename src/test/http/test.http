@@ -1,0 +1,37 @@
+### Register
+POST http://localhost:8080/api/users/register
+Content-Type: application/json
+
+{ "username": "demo_user", "password": "Secret123!" }
+
+### Login
+POST http://localhost:8080/api/users/login
+Content-Type: application/json
+
+{ "username": "demo_user", "password": "Secret123!" }
+
+> {% client.global.set("token", response.body.token); %}
+
+### Create media
+POST http://localhost:8080/api/media
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "title": "Blade Runner", "type": "MOVIE", "releaseYear": 1982 }
+
+> {% client.global.set("mediaId", response.body.id); %}
+
+### Rate media
+POST http://localhost:8080/api/ratings
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "mediaId": "{{mediaId}}", "stars": 5, "comment": "All-time classic." }
+
+### List media
+GET http://localhost:8080/api/media
+Authorization: Bearer {{token}}
+
+### List ratings for media
+GET http://localhost:8080/api/ratings?mediaId={{mediaId}}
+Authorization: Bearer {{token}}
