@@ -27,7 +27,7 @@ public class MediaController {
     }
 
     public void create(HttpExchange exchange) throws IOException {
-        if (!isJsonRequest(exchange)) {
+        if (!JsonUtil.isJsonRequest(exchange)) {
             JsonUtil.sendError(exchange, 415, "Content-Type must be JSON", "UNSUPPORTED_MEDIA_TYPE");
             return;
         }
@@ -51,10 +51,6 @@ public class MediaController {
         JsonUtil.sendJsonResponse(exchange, 201, toDto(created.get()));
     }
 
-    private boolean isJsonRequest(HttpExchange exchange) {
-        String contentType = exchange.getRequestHeaders().getFirst("Content-Type");
-        return contentType != null && contentType.contains("application/json");
-    }
     private Map<String, Object> toDto(MediaEntry entry) {
         Map<String, Object> dto = new HashMap<>();
         dto.put("id", entry.getId());

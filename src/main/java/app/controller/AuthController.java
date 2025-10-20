@@ -15,7 +15,7 @@ public class AuthController {
     public AuthController(AuthService authService) { this.authService = authService; }
 
     public void register(HttpExchange exchange) throws IOException {
-        if (!isJsonRequest(exchange)) {
+        if (!JsonUtil.isJsonRequest(exchange)) {
             JsonUtil.sendError(exchange, 415, "Content-Type must be JSON", "UNSUPPORTED_MEDIA_TYPE");
             return;
         }
@@ -40,7 +40,7 @@ public class AuthController {
     }
 
     public void login(HttpExchange exchange) throws IOException {
-        if(!isJsonRequest(exchange)) {
+        if(!JsonUtil.isJsonRequest(exchange)) {
             JsonUtil.sendError(exchange, 415, "Content-Type must be JSON", "UNSUPPORTED_MEDIA_TYPE");
             return;
         }
@@ -61,11 +61,13 @@ public class AuthController {
         tokenResponse.put("token", result.get().getToken());
         JsonUtil.sendJsonResponse(exchange, 200, tokenResponse);
     }
-
+    /**
+     * Ausgelagert in JsonUtil
     private boolean isJsonRequest(HttpExchange exchange) {
         String contentType = exchange.getRequestHeaders().getFirst("Content-Type");
         return contentType != null && contentType.startsWith(JsonUtil.APPLICATION_JSON);
     }
+     **/
     private Map<String, Object> toUserDto(User user) {
         Map<String, Object> dto = new HashMap<>();
         dto.put("id", user.getId());

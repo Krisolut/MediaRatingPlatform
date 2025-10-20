@@ -64,4 +64,14 @@ public final class JsonUtil {
         String json = MAPPER.writeValueAsString(body);
         return json.getBytes(StandardCharsets.UTF_8);
     }
+
+    // Auslagerung aus Controller
+    public static boolean isJsonRequest(HttpExchange exchange) {
+        if (exchange == null || exchange.getRequestHeaders() == null) {
+            return false;
+        }
+        String contentType = exchange.getRequestHeaders().getFirst("Content-Type");
+        return contentType != null && contentType.toLowerCase().startsWith(APPLICATION_JSON);
+    }
+
 }
