@@ -30,7 +30,7 @@ public class Router implements HttpHandler {
 
         Map<String, RouteDefinition> methodMap = routes.get(path);
         if (methodMap == null) {
-            JsonUtil.sendError(exchange, 404, "Resource Not Found", "NOT_FOUND");
+            JsonUtil.sendError(exchange, 404, "Resource Not Found", "RESSOURCE_NOT_FOUND");
             return;
         }
 
