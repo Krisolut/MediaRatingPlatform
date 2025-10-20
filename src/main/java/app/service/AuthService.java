@@ -45,10 +45,6 @@ public class AuthService {
                 .map(user -> new AuthResult(user, jwtService.generateToken(user.getId())));
     }
 
-    public User getUserById(String userId) {
-        return userRepository.findById(userId).orElse(null);
-    }
-
     public static class AuthResult {
         private final User user;
         private final String token;

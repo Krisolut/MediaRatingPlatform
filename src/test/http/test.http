@@ -35,3 +35,13 @@ Authorization: Bearer {{token}}
 ### List ratings for media
 GET http://localhost:8080/api/ratings?mediaId={{mediaId}}
 Authorization: Bearer {{token}}
+
+### Method Not Allowed
+PUT http://localhost:8080/api/media
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "title": "Should not work" }
+
+### Resource Not Found (wrong path)
+GET http://localhost:8080/api/unknown/endpoint
