@@ -1,5 +1,7 @@
 package app.controller;
 
+import app.dto.MediaDto;
+
 import app.model.MediaEntry;
 import app.model.enums.MediaType;
 import app.model.enums.ageRestriction;
@@ -9,10 +11,9 @@ import app.util.JsonUtil;
 import com.sun.net.httpserver.HttpExchange;
 
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+import java.time.format.DateTimeFormatter;
 
 public class MediaController {
     private final MediaService mediaService;
@@ -20,9 +21,9 @@ public class MediaController {
     public MediaController(MediaService mediaService) { this.mediaService = mediaService; }
 
     public void list(HttpExchange exchange) throws IOException {
-        List<Map<String, Object>> media = mediaService.findAll().stream()
+        List<MediaDto> media = mediaService.findAll().stream()
                 .map(this::toDto)
-                .collect(Collectors.toList());
+                .toList();
         JsonUtil.sendJsonResponse(exchange, 200, media);
     }
 
@@ -43,7 +44,12 @@ public class MediaController {
             return;
         }
         String userId = AuthMiddleware.getAuthenticatedUserId(exchange);
-        var created = mediaService.create(input.title, input.type.name(), input.releaseYear, input.fsk, userId);
+        var created = mediaService.create(
+                input.title,
+                input.type.name(),
+                input.releaseYear,
+                input.fsk,
+                userId);
         if (created.isEmpty()) {
             JsonUtil.sendError(exchange, 400, "Invalid media data", "BAD_REQUEST");
             return;
@@ -51,16 +57,17 @@ public class MediaController {
         JsonUtil.sendJsonResponse(exchange, 201, toDto(created.get()));
     }
 
-    private Map<String, Object> toDto(MediaEntry entry) {
-        Map<String, Object> dto = new HashMap<>();
-        dto.put("id", entry.getId());
-        dto.put("title", entry.getTitle());
-        dto.put("type", entry.getType().name());
-        dto.put("releaseYear", entry.getReleaseYear());
-        dto.put("fsk", entry.getFsk() != null ? entry.getFsk().name() : null);
-        dto.put("createdByUserId", entry.getCreatedByUserId());
-        dto.put("createdAt", entry.getCreatedAt().toString());
-        return dto;
+    private MediaDto toDto(MediaEntry entry) {
+        String createdAtIso = DateTimeFormatter.ISO_INSTANT.format(entry.getCreatedAt());
+        return new MediaDto(
+                entry.getId(),
+                entry.getTitle(),
+                entry.getType(),
+                entry.getReleaseYear(),
+                entry.getFsk(),
+                entry.getCreatedByUserId(),
+                createdAtIso
+        );
     }
 
     public static class MediaInput {
