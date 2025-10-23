@@ -44,6 +44,7 @@ public class MediaController {
             return;
         }
         String userId = AuthMiddleware.getAuthenticatedUserId(exchange);
+
         var created = mediaService.create(
                 input.title,
                 input.type.name(),

@@ -1,4 +1,11 @@
 package app.dto;
 
-public class RatingDto {
-}
+public record RatingDto (
+        String id,
+        String mediaId,
+        String userId,
+        Integer stars,
+        String comment,
+        String createdAt
+)
+{}

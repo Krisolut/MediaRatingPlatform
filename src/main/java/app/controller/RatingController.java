@@ -1,5 +1,7 @@
 package app.controller;
 
+import app.dto.RatingDto;
+
 import app.model.MediaEntry;
 import app.model.Rating;
 import app.security.AuthMiddleware;
@@ -11,11 +13,10 @@ import com.sun.net.httpserver.HttpExchange;
 import java.io.IOException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
+import java.time.format.DateTimeFormatter;
+
 import java.util.Optional;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class RatingController {
     private final RatingService ratingService;
@@ -63,10 +64,9 @@ public class RatingController {
                 JsonUtil.sendError(exchange, 400, "Invalid rating data", "BAD_REQUEST");
                 return;
             }
-            JsonUtil.sendJsonResponse(exchange, 200, toDto(created.get()));
+            JsonUtil.sendJsonResponse(exchange, 201, toDto(created.get()));
         } catch (RatingService.DuplicateRatingException ex) {
             JsonUtil.sendError(exchange, 409, ex.getMessage(), "CONFLICT");
-            return;
         }
     }
 
@@ -76,9 +76,9 @@ public class RatingController {
             JsonUtil.sendError(exchange, 400, "mediaId query parameter is required", "BAD_REQUEST");
             return;
         }
-        List<Map<String, Object>> ratings = ratingService.findByMediaId(mediaId).stream()
+        List<RatingDto> ratings = ratingService.findByMediaId(mediaId).stream()
                 .map(this::toDto)
-                .collect(Collectors.toList());
+                .toList();
         JsonUtil.sendJsonResponse(exchange, 200, ratings);
     }
 
@@ -96,20 +96,22 @@ public class RatingController {
         return null;
     }
 
-    private Map<String, Object> toDto(Rating rating) {
-        Map<String, Object> dto = new HashMap<>();
-        dto.put("id", rating.getId());
-        dto.put("userId", rating.getUserId());
-        dto.put("mediaId", rating.getMediaId());
-        dto.put("stars", rating.getStars());
-        dto.put("comment", rating.getComment());
-        dto.put("createdAt", rating.getCreatedAt().toString());
-        return dto;
+    private RatingDto toDto(Rating rating) {
+        String createdAtIso = DateTimeFormatter.ISO_INSTANT.format(rating.getCreatedAt());
+        return new RatingDto(
+                rating.getId(),
+                rating.getMediaId(),
+                rating.getUserId(),
+                rating.getStars(),
+                rating.getComment(),
+                createdAtIso
+        );
     }
 
-    public static class RatingInput {
-        public String mediaId;
-        public Integer stars;
-        public String comment;
-    }
+    public record RatingInput (
+            String mediaId,
+            Integer stars,
+            String comment
+    )
+    {}
 }
