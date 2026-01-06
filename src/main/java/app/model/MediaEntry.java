@@ -1,7 +1,7 @@
 package app.model;
 
 import app.model.enums.MediaType;
-import app.model.enums.ageRestriction;
+import app.model.enums.AgeRestriction;
 
 import java.time.Instant;
 import java.util.Objects;
@@ -11,11 +11,11 @@ public class MediaEntry {
     private final String title;
     private final MediaType type;
     private final Integer releaseYear;
-    private final ageRestriction fsk;
+    private final AgeRestriction fsk;
     private final String createdByUserId;
     private final Instant createdAt;
 
-    public MediaEntry(String id, String title, MediaType type, Integer releaseYear, ageRestriction fsk, String createdByUserId, Instant createdAt) {
+    public MediaEntry(String id, String title, MediaType type, Integer releaseYear, AgeRestriction fsk, String createdByUserId, Instant createdAt) {
         this.id = Objects.requireNonNull(id);
         this.title = Objects.requireNonNull(title);
         this.type = Objects.requireNonNull(type);
@@ -41,7 +41,7 @@ public class MediaEntry {
         return releaseYear;
     }
 
-    public ageRestriction getFsk() {
+    public AgeRestriction getFsk() {
         return fsk;
     }
 

@@ -1,6 +1,6 @@
 package app.model.enums;
 
-public enum ageRestriction {
+public enum AgeRestriction {
     FSK0,
     FSK6,
     FSK12,

@@ -1,6 +1,6 @@
 package app.controller;
 
-import app.dto.RatingDto;
+import app.dto.RatingRequest;
 
 import app.model.MediaEntry;
 import app.model.Rating;
@@ -76,7 +76,7 @@ public class RatingController {
             JsonUtil.sendError(exchange, 400, "mediaId query parameter is required", "BAD_REQUEST");
             return;
         }
-        List<RatingDto> ratings = ratingService.findByMediaId(mediaId).stream()
+        List<RatingRequest> ratings = ratingService.findByMediaId(mediaId).stream()
                 .map(this::toDto)
                 .toList();
         JsonUtil.sendJsonResponse(exchange, 200, ratings);
@@ -96,9 +96,9 @@ public class RatingController {
         return null;
     }
 
-    private RatingDto toDto(Rating rating) {
+    private RatingRequest toDto(Rating rating) {
         String createdAtIso = DateTimeFormatter.ISO_INSTANT.format(rating.getCreatedAt());
-        return new RatingDto(
+        return new RatingRequest(
                 rating.getId(),
                 rating.getMediaId(),
                 rating.getUserId(),

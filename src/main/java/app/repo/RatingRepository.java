@@ -7,7 +7,12 @@ import java.util.Optional;
 
 public interface RatingRepository {
     Rating save(Rating rating);
+    Rating update(Rating rating);
+    boolean delete(long ratingId);
 
-    List<Rating> findByMediaId(String mediaId);
-    Optional<Rating> findByUserIdAndMediaId(String userId, String mediaId);
+    List<Rating> findByMediaId(long mediaId);
+    Optional<Rating> findByUserIdAndMediaId(long userId, long mediaId);
+    Optional<Rating> findById(long ratingId);
+    List<Rating> findByUserId(long userId);
+    List<Rating> findAll();
 }

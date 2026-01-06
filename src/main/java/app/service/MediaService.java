@@ -2,7 +2,7 @@ package app.service;
 
 import app.model.MediaEntry;
 import app.repo.MediaRepository;
-import app.model.enums.ageRestriction;
+import app.model.enums.AgeRestriction;
 import app.model.enums.MediaType;
 
 import java.time.Instant;
@@ -15,7 +15,7 @@ public class MediaService {
 
     public MediaService(MediaRepository mediaRepository) { this.mediaRepository = mediaRepository; }
 
-    public Optional<MediaEntry> create(String title, String type, Integer releaseYear, ageRestriction ageRestriction, String userid) {
+    public Optional<MediaEntry> create(String title, String type, Integer releaseYear, AgeRestriction ageRestriction, String userid) {
         if (title == null || title.isBlank() || type == null || userid == null) return Optional.empty();
         MediaType mediaType;
         try{

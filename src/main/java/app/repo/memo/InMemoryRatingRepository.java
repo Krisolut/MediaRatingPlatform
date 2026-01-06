@@ -1,3 +1,4 @@
+/*
 package app.repo.memo;
 
 import app.model.Rating;
@@ -36,3 +37,4 @@ public class InMemoryRatingRepository implements RatingRepository {
         return Optional.empty();
     }
 }
+*/

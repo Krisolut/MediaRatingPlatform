@@ -7,7 +7,9 @@ import java.util.Optional;
 
 public interface MediaRepository {
     MediaEntry save(MediaEntry mediaEntry);
+    MediaEntry update(MediaEntry entry);
+    boolean delete(long id);
 
     List<MediaEntry> findAll();
-    Optional<MediaEntry> findById(String id);
+    Optional<MediaEntry> findById(long id);
 }

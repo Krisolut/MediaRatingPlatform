@@ -9,9 +9,9 @@ import app.repo.UserRepository;
 import app.service.AuthService;
 import app.service.MediaService;
 import app.service.RatingService;
-import app.repo.memo.InMemoryMediaRepository;
-import app.repo.memo.InMemoryRatingRepository;
-import app.repo.memo.InMemoryUserRepository;
+//import app.repo.memo.InMemoryMediaRepository;
+//import app.repo.memo.InMemoryRatingRepository;
+//import app.repo.memo.InMemoryUserRepository;
 
 import app.router.Router;
 
@@ -33,7 +33,7 @@ public class App {
     }
 
     public void start() throws IOException {
-        UserRepository userRepository = new InMemoryUserRepository();
+        UserRepository userRepository = new SqlUserRepository();
         MediaRepository mediaRepository = new InMemoryMediaRepository();
         RatingRepository ratingRepository = new InMemoryRatingRepository();
 

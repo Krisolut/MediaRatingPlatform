@@ -40,6 +40,13 @@ public final class JsonUtil {
         }
     }
 
+    // Hilfsmethode für Antworten ohne Body (z.B. Delete, No Content)
+    public static void sendEmptyResponse(HttpExchange exchange, int statusCode) throws IOException {
+        exchange.getResponseHeaders().set("Content-Type", APPLICATION_JSON + "; charset=UTF-8");
+        exchange.sendResponseHeaders(statusCode, -1);
+        exchange.close();
+    }
+
     // Fehlermeldungen
     public static void sendError(HttpExchange exchange, int statusCode, String message, String code) throws IOException {
         Map<String, Object> error = new HashMap<>();
@@ -57,14 +64,4 @@ public final class JsonUtil {
         String json = MAPPER.writeValueAsString(body);
         return json.getBytes(StandardCharsets.UTF_8);
     }
-
-    // Auslagerung aus Controller
-    public static boolean isJsonRequest(HttpExchange exchange) {
-        if (exchange == null || exchange.getRequestHeaders() == null) {
-            return false;
-        }
-        String contentType = exchange.getRequestHeaders().getFirst("Content-Type");
-        return contentType != null && contentType.toLowerCase().startsWith(APPLICATION_JSON);
-    }
-
 }
