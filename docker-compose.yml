@@ -1,0 +1,40 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:16
+    restart: always
+    environment:
+      POSTGRES_USER: mrpadmin
+      POSTGRES_PASSWORD: mrppass
+      POSTGRES_DB: mediaratingplatform
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mrpadmin -d mediaratingplatform"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  app:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: mediaratingplatform
+      DB_USER: mrpadmin
+      DB_PASS: mrppass
+      JWT_SECRET: super-secret-change-me
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/leaderboard || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+volumes:
+  pgdata:
