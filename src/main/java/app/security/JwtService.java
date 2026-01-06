@@ -8,23 +8,30 @@ import com.auth0.jwt.interfaces.JWTVerifier;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Optional;
 
 public class JwtService {
-    private static final String JWT_SECRET = "IHaveNoIdeaWhatIAmDoingHere123!"; // Das Secret sollte nicht im Code stehen oder?
-    private static final Algorithm ALGORITHM = Algorithm.HMAC256(JWT_SECRET);
-    private static final long EXPIRATION_HOURS = 2L;    // java.time arbeitet mit long
+    private static final String DEFAULT_SECRET = "change-me-in-production";
+    private static final long EXPIRATION_HOURS = 2L;
+
+    private final Algorithm algorithm;
 
     private final JWTVerifier verifier;
 
-    public JwtService(){ this.verifier = JWT.require(ALGORITHM).build(); }
+    public JwtService(){
+        String secret = Optional.ofNullable(System.getenv("JWT_SECRET")).filter(s -> !s.isBlank()).orElse(DEFAULT_SECRET);
+        this.algorithm = Algorithm.HMAC256(secret);
+        this.verifier = JWT.require(algorithm).withIssuer("rateit").build();
+    }
 
     public String generateToken(String userId){
         Instant now = Instant.now();
         return JWT.create()
+                .withIssuer("rateit")
                 .withSubject(userId)
                 .withIssuedAt(now)
                 .withExpiresAt(now.plus(EXPIRATION_HOURS, ChronoUnit.HOURS))
-                .sign(ALGORITHM);
+                .sign(algorithm);
     }
 
     public String verifyToken(String token) throws TokenVerificationException {

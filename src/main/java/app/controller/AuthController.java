@@ -1,27 +1,25 @@
 package app.controller;
 
+import app.dto.TokenResponse;
+import app.dto.UserCredentials;
+import app.dto.UserDto;
 import app.model.User;
 import app.service.AuthService;
 import app.util.JsonUtil;
 import com.sun.net.httpserver.HttpExchange;
 
-import app.dto.UserCredentials;
-import app.dto.UserDto;
-import app.dto.TokenResponse;
-
 import java.io.IOException;
-import java.time.format.DateTimeFormatter;
 
 public class AuthController {
     private final AuthService authService;
 
-    public AuthController(AuthService authService) {
-        this.authService = authService;
-    }
+    public AuthController(AuthService authService) { this.authService = authService; }
 
     public void register(HttpExchange exchange) throws IOException {
-        if (!requireJson(exchange)) return;
-
+        if (!isJsonRequest(exchange)) {
+            JsonUtil.sendError(exchange, 415, "Content-Type must be JSON", "UNSUPPORTED_MEDIA_TYPE");
+            return;
+        }
         UserCredentials credentials;
         try {
             credentials = JsonUtil.readJson(exchange.getRequestBody(), UserCredentials.class);
@@ -36,14 +34,17 @@ public class AuthController {
                 return;
             }
             User user = registered.get();
-            JsonUtil.sendJsonResponse(exchange, 201, toDto(user));
+            JsonUtil.sendJsonResponse(exchange, 201, toUserDto(user));
         } catch (AuthService.DuplicateUserException ex){
             JsonUtil.sendError(exchange, 409, ex.getMessage(), "CONFLICT");
         }
     }
 
     public void login(HttpExchange exchange) throws IOException {
-        if (!requireJson(exchange)) return;
+        if(!isJsonRequest(exchange)) {
+            JsonUtil.sendError(exchange, 415, "Content-Type must be JSON", "UNSUPPORTED_MEDIA_TYPE");
+            return;
+        }
 
         UserCredentials credentials;
         try {
@@ -57,25 +58,15 @@ public class AuthController {
             JsonUtil.sendError(exchange, 401, "Invalid username or password", "UNAUTHORIZED");
             return;
         }
-
-        JsonUtil.sendJsonResponse(exchange, 200, new TokenResponse(result.get().getToken()));
+        TokenResponse tokenResponse = new TokenResponse(result.get().getToken(), result.get().getUser().getId());
+        JsonUtil.sendJsonResponse(exchange, 200, tokenResponse);
     }
 
-    private boolean requireJson(HttpExchange exchange) throws IOException {
-        if (!JsonUtil.isJsonRequest(exchange)) {
-            JsonUtil.sendError(exchange, 415, "Content-Type must be JSON", "UNSUPPORTED_MEDIA_TYPE");
-            return false;
-        }
-        return true;
+    private boolean isJsonRequest(HttpExchange exchange) {
+        String contentType = exchange.getRequestHeaders().getFirst("Content-Type");
+        return contentType != null && contentType.startsWith(JsonUtil.APPLICATION_JSON);
     }
-
-    private UserDto toDto(User user) {
-        String createdAtIso = DateTimeFormatter.ISO_INSTANT.format(user.getCreatedAt());
-        return new UserDto(
-                user.getId(),
-                user.getUsername(),
-                user.getDisplayName(),
-                createdAtIso
-        );
+    private UserDto toUserDto(User user) {
+        return new UserDto(user.getId(), user.getUsername(), user.getCreatedAt().toString());
     }
 }

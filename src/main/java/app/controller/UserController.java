@@ -9,8 +9,6 @@ import app.util.JsonUtil;
 import com.sun.net.httpserver.HttpExchange;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 
 public class UserController {
     private final UserService userService;

@@ -1,21 +1,23 @@
 package app.service;
 
 import app.model.User;
+import app.repo.TokenRepository;
 import app.repo.UserRepository;
 import app.security.JwtService;
 import app.security.PasswordHasher;
 
 import java.time.Instant;
 import java.util.Optional;
-import java.util.UUID;
 
 public class AuthService {
     private final UserRepository userRepository;
+    private final TokenRepository tokenRepository;
     private final PasswordHasher passwordHasher;
     private final JwtService jwtService;
 
-    public AuthService(UserRepository userRepository, PasswordHasher passwordHasher, JwtService jwtService) {
+    public AuthService(UserRepository userRepository, TokenRepository tokenRepository, PasswordHasher passwordHasher, JwtService jwtService) {
         this.userRepository = userRepository;
+        this.tokenRepository = tokenRepository;
         this.passwordHasher = passwordHasher;
         this.jwtService = jwtService;
     }
@@ -24,16 +26,12 @@ public class AuthService {
         if (username == null || username.isBlank() || password == null || password.isBlank()) {
             return Optional.empty();
         }
-
-        if(userRepository.findByUsername(username).isPresent()) {
-            throw new DuplicateUserException("Username already exist");
+        if (userRepository.findByUsername(username.trim()).isPresent()) {
+            throw new DuplicateUserException("Username already exists");
         }
-
-        String id = UUID.randomUUID().toString();
         String passwordHash = passwordHasher.hash(password);
-        User user = new User(id, username.trim(), passwordHash, null, Instant.now());
-        userRepository.save(user);
-        return Optional.of(user);
+        User user = new User(0L, username.trim(), passwordHash, null, null, 0, 0.0, Instant.now());
+        return Optional.of(userRepository.save(user));
     }
 
     public Optional<AuthResult> login(String username, String password) {
@@ -42,7 +40,19 @@ public class AuthService {
         }
         return userRepository.findByUsername(username.trim())
                 .filter(user -> passwordHasher.matches(password, user.getPasswordHash()))
-                .map(user -> new AuthResult(user, jwtService.generateToken(user.getId())));
+                .map(user -> {
+                    String token = jwtService.generateToken(String.valueOf(user.getId()));
+                    tokenRepository.storeToken(token, user.getId());
+                    return new AuthResult(user, token);
+                });
+    }
+
+    public Optional<Long> validateToken(String token) {
+        return tokenRepository.findUserIdByToken(token);
+    }
+
+    public User getUserById(long userId) {
+        return userRepository.findById(userId).orElse(null);
     }
 
     public static class AuthResult {

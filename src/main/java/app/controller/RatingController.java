@@ -1,117 +1,77 @@
 package app.controller;
 
-import app.dto.RatingRequest;
-
-import app.model.MediaEntry;
-import app.model.Rating;
+import app.dto.ProfileUpdateRequest;
 import app.security.AuthMiddleware;
-import app.service.MediaService;
-import app.service.RatingService;
+import app.service.FavoriteService;
+import app.service.LeaderboardService;
+import app.service.RecommendationService;
+import app.service.UserService;
 import app.util.JsonUtil;
 import com.sun.net.httpserver.HttpExchange;
 
 import java.io.IOException;
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
-import java.time.format.DateTimeFormatter;
 
-import java.util.Optional;
-import java.util.List;
+public class UserController {
+    private final UserService userService;
+    private final FavoriteService favoriteService;
+    private final RecommendationService recommendationService;
+    private final LeaderboardService leaderboardService;
 
-public class RatingController {
-    private final RatingService ratingService;
-    private final MediaService mediaService;
-
-    public RatingController(RatingService ratingService, MediaService mediaService) {
-        this.ratingService = ratingService;
-        this.mediaService = mediaService;
+    public UserController(UserService userService, FavoriteService favoriteService,
+                          RecommendationService recommendationService, LeaderboardService leaderboardService) {
+        this.userService = userService;
+        this.favoriteService = favoriteService;
+        this.recommendationService = recommendationService;
+        this.leaderboardService = leaderboardService;
     }
 
-    public void create(HttpExchange exchange) throws IOException {
-        if (!JsonUtil.isJsonRequest(exchange)) {
-            JsonUtil.sendError(exchange, 415, "Content-Type must be JSON", "UNSUPPORTED_MEDIA_TYPE");
+    public void profile(HttpExchange exchange) throws IOException {
+        long userId = Long.parseLong(String.valueOf(exchange.getAttribute("pathParam:userId")));
+        var user = userService.findById(userId);
+        if (user.isEmpty()) {
+            JsonUtil.sendError(exchange, 404, "User not found", "NOT_FOUND");
             return;
         }
-        RatingInput input;
-        try {
-            input = JsonUtil.readJson(exchange.getRequestBody(), RatingInput.class);
-        } catch (IOException ex) {
-            JsonUtil.sendError(exchange, 400, "Invalid JSON", "BAD_REQUEST");
-            return;
-        }
+        JsonUtil.sendJsonResponse(exchange, 200, user.get());
+    }
 
-        String userId = AuthMiddleware.getAuthenticatedUserId(exchange);
-        if (userId == null) {
-            JsonUtil.sendError(exchange, 401, "Unauthorized", "UNAUTHORIZED");
+    public void updateProfile(HttpExchange exchange) throws IOException {
+        long userId = Long.parseLong(String.valueOf(exchange.getAttribute("pathParam:userId")));
+        Long requester = AuthMiddleware.getAuthenticatedUserId(exchange);
+        if (!Long.valueOf(userId).equals(requester)) {
+            JsonUtil.sendError(exchange, 403, "Cannot edit other users", "FORBIDDEN");
             return;
         }
-        if (input.mediaId == null || input.mediaId.isBlank() || input.stars == null) {
-            JsonUtil.sendError(exchange, 400, "mediaId and stars are required", "BAD_REQUEST");
+        ProfileUpdateRequest payload = JsonUtil.readJson(exchange.getRequestBody(), ProfileUpdateRequest.class);
+        var updated = userService.updateProfile(userId, payload.email(), payload.favoriteGenre());
+        if (updated.isEmpty()) {
+            JsonUtil.sendError(exchange, 404, "User not found", "NOT_FOUND");
             return;
         }
-        if (input.stars < 1 || input.stars > 5) {
-            JsonUtil.sendError(exchange, 400, "stars must be between 1 and 5", "BAD_REQUEST");
-            return;
+        JsonUtil.sendJsonResponse(exchange, 200, updated.get());
+    }
+
+    public void favorites(HttpExchange exchange) throws IOException {
+        long userId = Long.parseLong(String.valueOf(exchange.getAttribute("pathParam:userId")));
+        JsonUtil.sendJsonResponse(exchange, 200, favoriteService.listFavorites(userId));
+    }
+
+    public void recommendations(HttpExchange exchange) throws IOException {
+        long userId = Long.parseLong(String.valueOf(exchange.getAttribute("pathParam:userId")));
+        String type = exchange.getRequestURI().getQuery();
+        String value = "genre";
+        if (type != null && type.contains("content")) {
+            value = "content";
         }
-        Optional<MediaEntry> mediaEntry = mediaService.findById(input.mediaId);
-        if (mediaEntry.isEmpty()) {
-            JsonUtil.sendError(exchange, 404, "Media not found", "NOT_FOUND");
-            return;
-        }
-        try {
-            var created = ratingService.create(input.mediaId, userId, input.stars, input.comment, mediaEntry.get());
-            if (created.isEmpty()) {
-                JsonUtil.sendError(exchange, 400, "Invalid rating data", "BAD_REQUEST");
-                return;
-            }
-            JsonUtil.sendJsonResponse(exchange, 201, toDto(created.get()));
-        } catch (RatingService.DuplicateRatingException ex) {
-            JsonUtil.sendError(exchange, 409, ex.getMessage(), "CONFLICT");
+        if ("content".equalsIgnoreCase(value)) {
+            JsonUtil.sendJsonResponse(exchange, 200, recommendationService.recommendByContent(userId));
+        } else {
+            JsonUtil.sendJsonResponse(exchange, 200, recommendationService.recommendByGenre(userId));
         }
     }
 
-    public void listByMedia(HttpExchange exchange) throws IOException {
-        String mediaId = extractQueryParameter(exchange.getRequestURI().getRawQuery(), "mediaId");
-        if (mediaId == null || mediaId.isBlank()) {
-            JsonUtil.sendError(exchange, 400, "mediaId query parameter is required", "BAD_REQUEST");
-            return;
-        }
-        List<RatingRequest> ratings = ratingService.findByMediaId(mediaId).stream()
-                .map(this::toDto)
-                .toList();
-        JsonUtil.sendJsonResponse(exchange, 200, ratings);
+    public void leaderboard(HttpExchange exchange) throws IOException {
+        JsonUtil.sendJsonResponse(exchange, 200, leaderboardService.mostActiveUsers());
     }
 
-    private String extractQueryParameter(String query, String key) {
-        if (query == null || query.isBlank()) {
-            return null;
-        }
-        String[] pairs = query.split("&");
-        for (String pair : pairs) {
-            String[] kv = pair.split("=", 2);
-            if (kv.length == 2 && kv[0].equals(key)) {
-                return URLDecoder.decode(kv[1], StandardCharsets.UTF_8);
-            }
-        }
-        return null;
-    }
-
-    private RatingRequest toDto(Rating rating) {
-        String createdAtIso = DateTimeFormatter.ISO_INSTANT.format(rating.getCreatedAt());
-        return new RatingRequest(
-                rating.getId(),
-                rating.getMediaId(),
-                rating.getUserId(),
-                rating.getStars(),
-                rating.getComment(),
-                createdAtIso
-        );
-    }
-
-    public record RatingInput (
-            String mediaId,
-            Integer stars,
-            String comment
-    )
-    {}
 }
