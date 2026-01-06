@@ -8,7 +8,6 @@ import app.util.JsonUtil;
 import com.sun.net.httpserver.HttpExchange;
 
 import java.io.IOException;
-import java.util.Map;
 import java.util.Optional;
 
 public class RatingController {

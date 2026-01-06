@@ -6,12 +6,12 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Router implements HttpHandler {
-    private final Map<String, Map<String, RouteDefinition>> routes = new HashMap<>();
+    private final List<RouteDefinition> routes = new ArrayList<>();
     private final AuthMiddleware authMiddleware;
 
     public Router(AuthMiddleware authMiddleware) {
@@ -19,8 +19,8 @@ public class Router implements HttpHandler {
     }
 
     public void register(String method, String path, RouteHandler handler, boolean requiresAuth) {
-        routes.computeIfAbsent(path, ignored -> new HashMap<>())
-              .put(method.toUpperCase(), new RouteDefinition(handler, requiresAuth));
+        RouteDefinition def = new RouteDefinition(method.toUpperCase(), path, buildPattern(path), extractParams(path), handler, requiresAuth);
+        routes.add(def);
     }
 
     @Override
@@ -28,34 +28,62 @@ public class Router implements HttpHandler {
         String path = exchange.getRequestURI().getPath();
         String method = exchange.getRequestMethod().toUpperCase();
 
-        Map<String, RouteDefinition> methodMap = routes.get(path);
-        if (methodMap == null) {
-            JsonUtil.sendError(exchange, 404, "Resource Not Found", "RESSOURCE_NOT_FOUND");
+        RouteMatch match = findRoute(method, path);
+        if (match == null) {
+            JsonUtil.sendError(exchange, 404, "Resource Not Found", "NOT_FOUND");
             return;
         }
 
-        RouteDefinition routeDefinition = methodMap.get(method);
-        if(routeDefinition == null) {
-            JsonUtil.sendError(exchange, 405, "Method not allowed", "METHOD_NOT_ALLOWED");
-            return;
-        }
-
-        RouteHandler handler = routeDefinition.handler();
+        match.applyPathParams(exchange);
         try {
-            if (routeDefinition.requiresAuth()) {
-                authMiddleware.handle(exchange, handler);
+            if (match.definition.requiresAuth()) {
+                authMiddleware.handle(exchange, match.definition.handler());
             } else {
-                handler.handle(exchange);
+                match.definition.handler().handle(exchange);
             }
         } catch (Exception ex) {
             JsonUtil.sendError(exchange, 500, "Internal Server Error", "INTERNAL_SERVER_ERROR");
         }
     }
 
+    private RouteMatch findRoute(String method, String path) {
+        for (RouteDefinition def : routes) {
+            Matcher matcher = def.pattern.matcher(path);
+            if (def.method.equals(method) && matcher.matches()) {
+                Map<String, String> params = new HashMap<>();
+                for (int i = 0; i < def.paramNames.size(); i++) {
+                    params.put(def.paramNames.get(i), matcher.group(i + 1));
+                }
+                return new RouteMatch(def, params);
+            }
+        }
+        return null;
+    }
+
+    private Pattern buildPattern(String path) {
+        String regex = path.replaceAll("\\{([^/]+)}", "([^/]+)");
+        return Pattern.compile("^" + regex + "$");
+    }
+
+    private List<String> extractParams(String path) {
+        List<String> names = new ArrayList<>();
+        Matcher matcher = Pattern.compile("\\{([^/]+)}").matcher(path);
+        while (matcher.find()) {
+            names.add(matcher.group(1));
+        }
+        return names;
+    }
+
     public interface RouteHandler {
         void handle(HttpExchange exchange) throws IOException;
     }
 
-    private record RouteDefinition(RouteHandler handler, boolean requiresAuth){ }
+    private record RouteDefinition(String method, String rawPath, Pattern pattern, List<String> paramNames,
+                                   RouteHandler handler, boolean requiresAuth){ }
 
+    private record RouteMatch(RouteDefinition definition, Map<String, String> params) {
+        void applyPathParams(HttpExchange exchange) {
+            params.forEach((k, v) -> exchange.setAttribute("pathParam:" + k, v));
+        }
+    }
 }

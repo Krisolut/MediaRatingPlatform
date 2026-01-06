@@ -18,7 +18,8 @@ public class Database {
         String port = System.getenv().getOrDefault("DB_PORT", "5432");
         String db = System.getenv().getOrDefault("DB_NAME", "mediaratingplatform");
         this.user = System.getenv().getOrDefault("DB_USER", "mrpadmin");
-        this.password = System.getenv().getOrDefault("DB_PASS", System.getenv().getOrDefault("DB_PASSWORD", "mrppass"));
+        this.password = System.getenv().getOrDefault("DB_PASS",
+                System.getenv().getOrDefault("DB_PASSWORD", "mrppass"));
         this.url = "jdbc:postgresql://" + host + ":" + port + "/" + db;
     }
 

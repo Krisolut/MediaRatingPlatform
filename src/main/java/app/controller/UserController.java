@@ -1,5 +1,6 @@
 package app.controller;
 
+import app.dto.ProfileUpdateRequest;
 import app.security.AuthMiddleware;
 import app.service.FavoriteService;
 import app.service.LeaderboardService;
@@ -41,8 +42,8 @@ public class UserController {
             JsonUtil.sendError(exchange, 403, "Cannot edit other users", "FORBIDDEN");
             return;
         }
-        ProfilePayload payload = JsonUtil.readJson(exchange.getRequestBody(), ProfilePayload.class);
-        var updated = userService.updateProfile(userId, payload.email, payload.favoriteGenre);
+        ProfileUpdateRequest payload = JsonUtil.readJson(exchange.getRequestBody(), ProfileUpdateRequest.class);
+        var updated = userService.updateProfile(userId, payload.email(), payload.favoriteGenre());
         if (updated.isEmpty()) {
             JsonUtil.sendError(exchange, 404, "User not found", "NOT_FOUND");
             return;
@@ -71,10 +72,5 @@ public class UserController {
 
     public void leaderboard(HttpExchange exchange) throws IOException {
         JsonUtil.sendJsonResponse(exchange, 200, leaderboardService.mostActiveUsers());
-    }
-
-    public static class ProfilePayload {
-        public String email;
-        public String favoriteGenre;
     }
 }

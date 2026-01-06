@@ -14,7 +14,6 @@ import app.security.JwtService;
 import app.security.PasswordHasher;
 import app.service.*;
 import app.util.Database;
-import app.service.UserService;
 import com.sun.net.httpserver.HttpServer;
 
 import java.io.IOException;
