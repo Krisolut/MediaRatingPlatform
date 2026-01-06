@@ -1,77 +1,78 @@
 package app.controller;
 
-import app.dto.ProfileUpdateRequest;
+import app.dto.RatingRequest;
+import app.model.Rating;
+import app.service.RatingService;
 import app.security.AuthMiddleware;
-import app.service.FavoriteService;
-import app.service.LeaderboardService;
-import app.service.RecommendationService;
-import app.service.UserService;
 import app.util.JsonUtil;
 import com.sun.net.httpserver.HttpExchange;
 
 import java.io.IOException;
+import java.util.Map;
+import java.util.Optional;
 
-public class UserController {
-    private final UserService userService;
-    private final FavoriteService favoriteService;
-    private final RecommendationService recommendationService;
-    private final LeaderboardService leaderboardService;
+public class RatingController {
+    private final RatingService ratingService;
 
-    public UserController(UserService userService, FavoriteService favoriteService,
-                          RecommendationService recommendationService, LeaderboardService leaderboardService) {
-        this.userService = userService;
-        this.favoriteService = favoriteService;
-        this.recommendationService = recommendationService;
-        this.leaderboardService = leaderboardService;
+    public RatingController(RatingService ratingService) {
+        this.ratingService = ratingService;
     }
 
-    public void profile(HttpExchange exchange) throws IOException {
-        long userId = Long.parseLong(String.valueOf(exchange.getAttribute("pathParam:userId")));
-        var user = userService.findById(userId);
-        if (user.isEmpty()) {
-            JsonUtil.sendError(exchange, 404, "User not found", "NOT_FOUND");
+    public void update(HttpExchange exchange) throws IOException {
+        long ratingId = Long.parseLong(String.valueOf(exchange.getAttribute("pathParam:ratingId")));
+        Long userId = AuthMiddleware.getAuthenticatedUserId(exchange);
+        RatingRequest payload = JsonUtil.readJson(exchange.getRequestBody(), RatingRequest.class);
+        try {
+            Optional<Rating> updated = ratingService.updateRating(ratingId, userId, payload.stars(), payload.comment());
+            if (updated.isEmpty()) {
+                JsonUtil.sendError(exchange, 404, "Rating not found", "NOT_FOUND");
+                return;
+            }
+            JsonUtil.sendJsonResponse(exchange, 200, updated.get());
+        } catch (RatingService.UnauthorizedException ex) {
+            JsonUtil.sendError(exchange, 403, ex.getMessage(), "FORBIDDEN");
+        }
+    }
+
+    public void delete(HttpExchange exchange) throws IOException {
+        long ratingId = Long.parseLong(String.valueOf(exchange.getAttribute("pathParam:ratingId")));
+        Long userId = AuthMiddleware.getAuthenticatedUserId(exchange);
+        try {
+            boolean deleted = ratingService.delete(ratingId, userId);
+            if (!deleted) {
+                JsonUtil.sendError(exchange, 404, "Rating not found", "NOT_FOUND");
+                return;
+            }
+            JsonUtil.sendEmptyResponse(exchange, 204);
+        } catch (RatingService.UnauthorizedException ex) {
+            JsonUtil.sendError(exchange, 403, ex.getMessage(), "FORBIDDEN");
+        }
+    }
+
+    public void like(HttpExchange exchange) throws IOException {
+        long ratingId = Long.parseLong(String.valueOf(exchange.getAttribute("pathParam:ratingId")));
+        Long userId = AuthMiddleware.getAuthenticatedUserId(exchange);
+        var like = ratingService.like(ratingId, userId);
+        if (like.isEmpty()) {
+            JsonUtil.sendError(exchange, 409, "Cannot like rating", "CONFLICT");
             return;
         }
-        JsonUtil.sendJsonResponse(exchange, 200, user.get());
+        JsonUtil.sendJsonResponse(exchange, 201, like.get());
     }
 
-    public void updateProfile(HttpExchange exchange) throws IOException {
-        long userId = Long.parseLong(String.valueOf(exchange.getAttribute("pathParam:userId")));
-        Long requester = AuthMiddleware.getAuthenticatedUserId(exchange);
-        if (!Long.valueOf(userId).equals(requester)) {
-            JsonUtil.sendError(exchange, 403, "Cannot edit other users", "FORBIDDEN");
-            return;
+    public void confirm(HttpExchange exchange) throws IOException {
+        long ratingId = Long.parseLong(String.valueOf(exchange.getAttribute("pathParam:ratingId")));
+        Long userId = AuthMiddleware.getAuthenticatedUserId(exchange);
+        try {
+            Optional<Rating> confirmed = ratingService.confirm(ratingId, userId);
+            if (confirmed.isEmpty()) {
+                JsonUtil.sendError(exchange, 404, "Rating not found", "NOT_FOUND");
+                return;
+            }
+            JsonUtil.sendJsonResponse(exchange, 200, confirmed.get());
+        } catch (RatingService.UnauthorizedException ex) {
+            JsonUtil.sendError(exchange, 403, ex.getMessage(), "FORBIDDEN");
         }
-        ProfileUpdateRequest payload = JsonUtil.readJson(exchange.getRequestBody(), ProfileUpdateRequest.class);
-        var updated = userService.updateProfile(userId, payload.email(), payload.favoriteGenre());
-        if (updated.isEmpty()) {
-            JsonUtil.sendError(exchange, 404, "User not found", "NOT_FOUND");
-            return;
-        }
-        JsonUtil.sendJsonResponse(exchange, 200, updated.get());
-    }
-
-    public void favorites(HttpExchange exchange) throws IOException {
-        long userId = Long.parseLong(String.valueOf(exchange.getAttribute("pathParam:userId")));
-        JsonUtil.sendJsonResponse(exchange, 200, favoriteService.listFavorites(userId));
-    }
-
-    public void recommendations(HttpExchange exchange) throws IOException {
-        long userId = Long.parseLong(String.valueOf(exchange.getAttribute("pathParam:userId")));
-        String type = exchange.getRequestURI().getQuery();
-        String value = "genre";
-        if (type != null && type.contains("content")) {
-            value = "content";
-        }
-        if ("content".equalsIgnoreCase(value)) {
-            JsonUtil.sendJsonResponse(exchange, 200, recommendationService.recommendByContent(userId));
-        } else {
-            JsonUtil.sendJsonResponse(exchange, 200, recommendationService.recommendByGenre(userId));
-        }
-    }
-
-    public void leaderboard(HttpExchange exchange) throws IOException {
-        JsonUtil.sendJsonResponse(exchange, 200, leaderboardService.mostActiveUsers());
     }
 
 }
