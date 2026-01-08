@@ -1,37 +1,254 @@
-### Register
-POST http://localhost:8080/api/users/register
-Content-Type: application/json
+@base = http://localhost:8080/api
+@json = application/json
+
+### ------------------------------------------------------------------
+### AUTH: Register/Login User1
+### ------------------------------------------------------------------
+
+### Register user1
+POST {{base}}/users/register
+Content-Type: {{json}}
 
 { "username": "demo_user", "password": "Secret123!" }
 
-### Login
-POST http://localhost:8080/api/users/login
-Content-Type: application/json
+### Login user1 -> token1 + userId1
+POST {{base}}/users/login
+Content-Type: {{json}}
 
 { "username": "demo_user", "password": "Secret123!" }
 
-> {% client.global.set("token", response.body.token); %}
+> {%
+    client.global.set("token1", response.body.token);
+    client.global.set("userId1", response.body.userId);
+%}
 
-### Create media
-POST http://localhost:8080/api/media
-Authorization: Bearer {{token}}
-Content-Type: application/json
+### ------------------------------------------------------------------
+### AUTH: Register/Login User2
+### ------------------------------------------------------------------
 
-{ "title": "Blade Runner", "type": "MOVIE", "releaseYear": 1982 }
+### Register user2
+POST {{base}}/users/register
+Content-Type: {{json}}
 
-> {% client.global.set("mediaId", response.body.id); %}
+{ "username": "demo_user_2", "password": "Secret123!" }
 
-### Rate media
-POST http://localhost:8080/api/ratings
-Authorization: Bearer {{token}}
-Content-Type: application/json
+### Login user2 -> token2 + userId2
+POST {{base}}/users/login
+Content-Type: {{json}}
 
-{ "mediaId": "{{mediaId}}", "stars": 5, "comment": "All-time classic." }
+{ "username": "demo_user_2", "password": "Secret123!" }
 
-### List media
-GET http://localhost:8080/api/media
-Authorization: Bearer {{token}}
+> {%
+    client.global.set("token2", response.body.token);
+    client.global.set("userId2", response.body.userId);
+%}
 
-### List ratings for media
-GET http://localhost:8080/api/ratings?mediaId={{mediaId}}
-Authorization: Bearer {{token}}
+### ------------------------------------------------------------------
+### MEDIA: Create/List/Details/Update/Delete
+### ------------------------------------------------------------------
+
+### Create media A as user1 -> mediaIdA
+POST {{base}}/media
+Authorization: Bearer {{token1}}
+Content-Type: {{json}}
+
+{
+  "title": "Blade Runner",
+  "description": "Neo-noir sci-fi classic",
+  "mediaType": "MOVIE",
+  "releaseYear": 1982,
+  "ageRestriction": "FSK12",
+  "genres": ["Sci-Fi", "Action"]
+}
+
+> {%
+    client.global.set("mediaIdA", response.body.id);
+%}
+
+### Create media B as user1 -> mediaIdB
+POST {{base}}/media
+Authorization: Bearer {{token1}}
+Content-Type: {{json}}
+
+{
+  "title": "Disco Elysium",
+  "description": "Detective RPG",
+  "mediaType": "GAME",
+  "releaseYear": 2019,
+  "ageRestriction": "FSK16",
+  "genres": ["RPG", "Drama"]
+}
+
+> {%
+    client.global.set("mediaIdB", response.body.id);
+%}
+
+### List media (public)
+GET {{base}}/media
+
+### Media details (public)
+GET {{base}}/media/{{mediaIdA}}
+
+### Update media as owner (user1)
+PUT {{base}}/media/{{mediaIdA}}
+Authorization: Bearer {{token1}}
+Content-Type: {{json}}
+
+{
+  "title": "Blade Runner (Final Cut)",
+  "description": "Updated description",
+  "mediaType": "MOVIE",
+  "releaseYear": 1982,
+  "ageRestriction": "FSK12",
+  "genres": ["Sci-Fi"]
+}
+
+### Update media as non-owner (user2) -> should fail
+PUT {{base}}/media/{{mediaIdA}}
+Authorization: Bearer {{token2}}
+Content-Type: {{json}}
+
+{
+  "title": "i should not be able to do this",
+  "mediaType": "MOVIE"
+}
+
+### ------------------------------------------------------------------
+### RATE via /media/{mediaId}/rate  (RatingRequest: stars, comment)
+### ------------------------------------------------------------------
+
+### Rate media A as user1 -> ratingIdUser1
+POST {{base}}/media/{{mediaIdA}}/rate
+Authorization: Bearer {{token1}}
+Content-Type: {{json}}
+
+{ "stars": 5, "comment": "All-time classic." }
+
+> {%
+    client.global.set("ratingIdUser1", response.body.id);
+%}
+
+### Upsert same rating as user1 (updates)
+POST {{base}}/media/{{mediaIdA}}/rate
+Authorization: Bearer {{token1}}
+Content-Type: {{json}}
+
+{ "stars": 3, "comment": "Rewatch: still good." }
+
+### Rate same media A as user2 -> ratingIdUser2
+POST {{base}}/media/{{mediaIdA}}/rate
+Authorization: Bearer {{token2}}
+Content-Type: {{json}}
+
+{ "stars": 4, "comment": "Pretty good." }
+
+> {%
+    client.global.set("ratingIdUser2", response.body.id);
+%}
+
+### ------------------------------------------------------------------
+### RATING: Update/Delete by ratingId
+### ------------------------------------------------------------------
+
+### Update rating (user1 edits own)
+PUT {{base}}/ratings/{{ratingIdUser1}}
+Authorization: Bearer {{token1}}
+Content-Type: {{json}}
+
+{ "stars": 4, "comment": "Upgraded after thinking about it." }
+
+### Update rating (user2 tries to edit user1) -> should fail
+PUT {{base}}/ratings/{{ratingIdUser1}}
+Authorization: Bearer {{token2}}
+Content-Type: {{json}}
+
+{ "stars": 1, "comment": "Malicious edit attempt." }
+
+### Delete rating (user2 tries to delete user1) -> should fail
+DELETE {{base}}/ratings/{{ratingIdUser1}}
+Authorization: Bearer {{token2}}
+
+### ------------------------------------------------------------------
+### RATING: Confirm (owner-only)
+### ------------------------------------------------------------------
+
+### Confirm rating (user1 confirms own)
+POST {{base}}/ratings/{{ratingIdUser1}}/confirm
+Authorization: Bearer {{token1}}
+
+### Confirm rating (user2 tries to confirm user1) -> should fail
+POST {{base}}/ratings/{{ratingIdUser1}}/confirm
+Authorization: Bearer {{token2}}
+
+### ------------------------------------------------------------------
+### RATING: Like + duplicate prevention
+### ------------------------------------------------------------------
+
+### user2 likes user1 rating (should succeed)
+POST {{base}}/ratings/{{ratingIdUser1}}/like
+Authorization: Bearer {{token2}}
+
+### user2 likes again (should be blocked)
+POST {{base}}/ratings/{{ratingIdUser1}}/like
+Authorization: Bearer {{token2}}
+
+### user1 tries to like own rating (blocked)
+POST {{base}}/ratings/{{ratingIdUser1}}/like
+Authorization: Bearer {{token1}}
+
+### ------------------------------------------------------------------
+### FAVORITES: Mark/Unmark (no body)
+### ------------------------------------------------------------------
+
+### Favorite media A as user1
+POST {{base}}/media/{{mediaIdA}}/favorite
+Authorization: Bearer {{token1}}
+
+### Favorite again (duplicate) -> should be blocked
+POST {{base}}/media/{{mediaIdA}}/favorite
+Authorization: Bearer {{token1}}
+
+### Unfavorite media A as user1
+DELETE {{base}}/media/{{mediaIdA}}/favorite
+Authorization: Bearer {{token1}}
+
+### ------------------------------------------------------------------
+### USER: Profile + UpdateProfile + Favorites + Recommendations
+### ------------------------------------------------------------------
+
+### Profile (user1)  (protected)
+GET {{base}}/users/{{userId1}}/profile
+Authorization: Bearer {{token1}}
+
+### Update profile (ProfileUpdateRequest: email, favoriteGenre)
+PUT {{base}}/users/{{userId1}}/profile
+Authorization: Bearer {{token1}}
+Content-Type: {{json}}
+
+{ "email": "demo_user@mail.example", "favoriteGenre": "Action" }
+
+### Favorites list (user1)
+GET {{base}}/users/{{userId1}}/favorites
+Authorization: Bearer {{token1}}
+
+### Recommendations (user1)
+GET {{base}}/users/{{userId1}}/recommendations
+Authorization: Bearer {{token1}}
+
+### ------------------------------------------------------------------
+### LEADERBOARD (public)
+### ------------------------------------------------------------------
+
+GET {{base}}/leaderboard
+
+### ------------------------------------------------------------------
+### MEDIA DELETE (run last)
+### ------------------------------------------------------------------
+
+### Delete media as non-owner (user2) -> should fail
+DELETE {{base}}/media/{{mediaIdA}}
+Authorization: Bearer {{token2}}
+
+### Delete media as owner (user1)
+DELETE {{base}}/media/{{mediaIdA}}
+Authorization: Bearer {{token1}}
