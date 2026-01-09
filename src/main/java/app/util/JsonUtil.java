@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.util.Map;
 import java.time.Instant;
 import java.util.HashMap;
@@ -20,6 +21,8 @@ public final class JsonUtil {
     static{
         // Optik
         MAPPER.enable(SerializationFeature.INDENT_OUTPUT);
+        MAPPER.registerModule(new JavaTimeModule());
+        MAPPER.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     }
     private JsonUtil(){}
 

@@ -24,8 +24,38 @@ public class Database {
     }
 
     public Connection getConnection() throws SQLException {
-        return DriverManager.getConnection(url, user, password);
+        int attempts = 0;
+        long waitMs = 300;
+
+        while (true) {
+            try {
+                return DriverManager.getConnection(url, user, password);
+            } catch (SQLException ex) {
+                String msg = ex.getMessage() != null ? ex.getMessage().toLowerCase() : "";
+
+                boolean dbStarting =
+                        msg.contains("starting up") ||
+                                msg.contains("the database system is starting");
+
+                attempts++;
+
+                if (!dbStarting || attempts >= 15) {
+                    throw ex; // echter Fehler oder zu viele Versuche
+                }
+
+                try {
+                    Thread.sleep(waitMs);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw ex;
+                }
+
+                waitMs = Math.min(2000, (long) (waitMs * 1.5));
+            }
+        }
     }
+
+
 
     public void initializeSchema(Path schemaPath) throws IOException, SQLException {
         String sql = Files.readString(schemaPath);

@@ -20,7 +20,18 @@ public class RatingController {
     public void update(HttpExchange exchange) throws IOException {
         long ratingId = Long.parseLong(String.valueOf(exchange.getAttribute("pathParam:ratingId")));
         Long userId = AuthMiddleware.getAuthenticatedUserId(exchange);
-        RatingRequest payload = JsonUtil.readJson(exchange.getRequestBody(), RatingRequest.class);
+        String contentType = exchange.getRequestHeaders().getFirst("Content-Type");
+        if (contentType == null || !contentType.startsWith(JsonUtil.APPLICATION_JSON)) {
+            JsonUtil.sendError(exchange, 415, "Content-Type must be JSON", "UNSUPPORTED_MEDIA_TYPE");
+            return;
+        }
+        RatingRequest payload;
+        try {
+            payload = JsonUtil.readJson(exchange.getRequestBody(), RatingRequest.class);
+        } catch (IOException ex) {
+            JsonUtil.sendError(exchange, 400, "Invalid JSON", "BAD_REQUEST");
+            return;
+        }
         try {
             Optional<Rating> updated = ratingService.updateRating(ratingId, userId, payload.stars(), payload.comment());
             if (updated.isEmpty()) {

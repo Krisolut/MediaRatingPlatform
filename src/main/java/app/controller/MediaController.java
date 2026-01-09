@@ -5,11 +5,11 @@ import app.dto.RatingRequest;
 import app.model.MediaEntry;
 import app.model.Rating;
 import app.model.enums.AgeRestriction;
+import app.security.AuthMiddleware;
 import app.service.FavoriteService;
 import app.service.MediaService;
 import app.service.RatingService;
 import app.util.JsonUtil;
-import app.security.AuthMiddleware;
 import com.sun.net.httpserver.HttpExchange;
 
 import java.io.IOException;
@@ -31,23 +31,40 @@ public class MediaController {
     public void list(HttpExchange exchange) throws IOException {
         var query = exchange.getRequestURI().getQuery();
         Map<String, String> params = parseQuery(query);
-        MediaService.MediaQuery mediaQuery = new MediaService.MediaQuery(
-                params.get("title"),
-                params.get("genre"),
-                params.get("mediaType"),
-                params.containsKey("releaseYear") ? Integer.valueOf(params.get("releaseYear")) : null,
-                params.containsKey("ageRestriction") ? AgeRestriction.valueOf(params.get("ageRestriction")) : null,
-                params.containsKey("rating") ? Double.valueOf(params.get("rating")) : null,
-                params.get("sortBy")
-        );
+
+        MediaService.MediaQuery mediaQuery;
+        try {
+            mediaQuery = new MediaService.MediaQuery(
+                    params.get("title"),
+                    params.get("genre"),
+                    params.get("mediaType"),
+                    params.containsKey("releaseYear") ? Integer.valueOf(params.get("releaseYear")) : null,
+                    params.containsKey("ageRestriction") ? AgeRestriction.valueOf(params.get("ageRestriction")) : null,
+                    params.containsKey("rating") ? Double.valueOf(params.get("rating")) : null,
+                    params.get("sortBy")
+            );
+        } catch (IllegalArgumentException ex) { // <- reicht, NumberFormatException ist schon drin
+            JsonUtil.sendError(exchange, 400, "Invalid query parameters", "BAD_REQUEST");
+            return;
+        }
+
         JsonUtil.sendJsonResponse(exchange, 200, mediaService.findAll(mediaQuery));
     }
 
     public void create(HttpExchange exchange) throws IOException {
-        MediaRequest req = JsonUtil.readJson(exchange.getRequestBody(), MediaRequest.class);
-        Long userId = AuthMiddleware.getAuthenticatedUserId(exchange);
-        var created = mediaService.create(req.title(), req.description(), req.mediaType(), req.releaseYear(),
-                req.ageRestriction(), req.genres(), userId == null ? 0L : userId);
+        if (!requireJson(exchange)) return;
+
+        Long userId = requireAuth(exchange);
+        if (userId == null) return;
+
+        MediaRequest req = readJsonBody(exchange, MediaRequest.class);
+        if (req == null) return;
+
+        var created = mediaService.create(
+                req.title(), req.description(), req.mediaType(), req.releaseYear(),
+                req.ageRestriction(), req.genres(), userId
+        );
+
         if (created.isEmpty()) {
             JsonUtil.sendError(exchange, 400, "Invalid media payload", "BAD_REQUEST");
             return;
@@ -56,7 +73,9 @@ public class MediaController {
     }
 
     public void details(HttpExchange exchange) throws IOException {
-        long mediaId = Long.parseLong(String.valueOf(exchange.getAttribute("pathParam:mediaId")));
+        Long mediaId = requireMediaId(exchange);
+        if (mediaId == null) return;
+
         Optional<MediaEntry> media = mediaService.findById(mediaId);
         if (media.isEmpty()) {
             JsonUtil.sendError(exchange, 404, "Media not found", "NOT_FOUND");
@@ -66,11 +85,22 @@ public class MediaController {
     }
 
     public void update(HttpExchange exchange) throws IOException {
-        long mediaId = Long.parseLong(String.valueOf(exchange.getAttribute("pathParam:mediaId")));
-        Long userId = AuthMiddleware.getAuthenticatedUserId(exchange);
-        MediaRequest req = JsonUtil.readJson(exchange.getRequestBody(), MediaRequest.class);
+        if (!requireJson(exchange)) return;
+
+        Long userId = requireAuth(exchange);
+        if (userId == null) return;
+
+        Long mediaId = requireMediaId(exchange);
+        if (mediaId == null) return;
+
+        MediaRequest req = readJsonBody(exchange, MediaRequest.class);
+        if (req == null) return;
+
         try {
-            var updated = mediaService.update(mediaId, userId, req.title(), req.description(), req.releaseYear(), req.ageRestriction(), req.genres());
+            var updated = mediaService.update(
+                    mediaId, userId,
+                    req.title(), req.description(), req.releaseYear(), req.ageRestriction(), req.genres()
+            );
             if (updated.isEmpty()) {
                 JsonUtil.sendError(exchange, 404, "Media not found", "NOT_FOUND");
                 return;
@@ -82,8 +112,12 @@ public class MediaController {
     }
 
     public void delete(HttpExchange exchange) throws IOException {
-        long mediaId = Long.parseLong(String.valueOf(exchange.getAttribute("pathParam:mediaId")));
-        Long userId = AuthMiddleware.getAuthenticatedUserId(exchange);
+        Long userId = requireAuth(exchange);
+        if (userId == null) return;
+
+        Long mediaId = requireMediaId(exchange);
+        if (mediaId == null) return;
+
         try {
             boolean deleted = mediaService.delete(mediaId, userId);
             if (!deleted) {
@@ -97,16 +131,32 @@ public class MediaController {
     }
 
     public void rate(HttpExchange exchange) throws IOException {
-        long mediaId = Long.parseLong(String.valueOf(exchange.getAttribute("pathParam:mediaId")));
-        Long userId = AuthMiddleware.getAuthenticatedUserId(exchange);
-        RatingRequest req = JsonUtil.readJson(exchange.getRequestBody(), RatingRequest.class);
-        Rating rating = ratingService.upsertRating(mediaId, userId, req.stars(), req.comment());
-        JsonUtil.sendJsonResponse(exchange, 200, rating);
+        if (!requireJson(exchange)) return;
+
+        Long userId = requireAuth(exchange);
+        if (userId == null) return;
+
+        Long mediaId = requireMediaId(exchange);
+        if (mediaId == null) return;
+
+        RatingRequest req = readJsonBody(exchange, RatingRequest.class);
+        if (req == null) return;
+
+        try {
+            Rating rating = ratingService.upsertRating(mediaId, userId, req.stars(), req.comment());
+            JsonUtil.sendJsonResponse(exchange, 200, rating);
+        } catch (IllegalArgumentException ex) {
+            JsonUtil.sendError(exchange, 400, ex.getMessage(), "BAD_REQUEST");
+        }
     }
 
     public void favorite(HttpExchange exchange) throws IOException {
-        long mediaId = Long.parseLong(String.valueOf(exchange.getAttribute("pathParam:mediaId")));
-        Long userId = AuthMiddleware.getAuthenticatedUserId(exchange);
+        Long userId = requireAuth(exchange);
+        if (userId == null) return;
+
+        Long mediaId = requireMediaId(exchange);
+        if (mediaId == null) return;
+
         Optional<?> result = favoriteService.markFavorite(userId, mediaId);
         if (result.isEmpty()) {
             JsonUtil.sendError(exchange, 409, "Already favorited", "CONFLICT");
@@ -116,8 +166,12 @@ public class MediaController {
     }
 
     public void unfavorite(HttpExchange exchange) throws IOException {
-        long mediaId = Long.parseLong(String.valueOf(exchange.getAttribute("pathParam:mediaId")));
-        Long userId = AuthMiddleware.getAuthenticatedUserId(exchange);
+        Long userId = requireAuth(exchange);
+        if (userId == null) return;
+
+        Long mediaId = requireMediaId(exchange);
+        if (mediaId == null) return;
+
         boolean removed = favoriteService.removeFavorite(userId, mediaId);
         if (!removed) {
             JsonUtil.sendError(exchange, 404, "Favorite not found", "NOT_FOUND");
@@ -126,15 +180,57 @@ public class MediaController {
         JsonUtil.sendEmptyResponse(exchange, 204);
     }
 
+    // ---------- Helper ----------
+
+    private boolean requireJson(HttpExchange exchange) throws IOException {
+        String contentType = exchange.getRequestHeaders().getFirst("Content-Type");
+        if (contentType == null || !contentType.startsWith(JsonUtil.APPLICATION_JSON)) {
+            JsonUtil.sendError(exchange, 415, "Content-Type must be application/json", "UNSUPPORTED_MEDIA_TYPE");
+            return false;
+        }
+        return true;
+    }
+
+    private Long requireAuth(HttpExchange exchange) throws IOException {
+        Long userId = AuthMiddleware.getAuthenticatedUserId(exchange);
+        if (userId == null) {
+            JsonUtil.sendError(exchange, 401, "Authentication required", "UNAUTHORIZED");
+        }
+        return userId;
+    }
+
+    private <T> T readJsonBody(HttpExchange exchange, Class<T> clazz) throws IOException {
+        try {
+            return JsonUtil.readJson(exchange.getRequestBody(), clazz);
+        } catch (IOException ex) {
+            JsonUtil.sendError(exchange, 400, "Invalid JSON", "BAD_REQUEST");
+            return null;
+        }
+    }
+
+    private Long requireMediaId(HttpExchange exchange) throws IOException {
+        Object raw = exchange.getAttribute("pathParam:mediaId");
+        if (raw == null) {
+            JsonUtil.sendError(exchange, 400, "Missing mediaId", "BAD_REQUEST");
+            return null;
+        }
+        try {
+            return Long.parseLong(String.valueOf(raw));
+        } catch (NumberFormatException ex) {
+            JsonUtil.sendError(exchange, 400, "Invalid mediaId", "BAD_REQUEST");
+            return null;
+        }
+    }
+
     private Map<String, String> parseQuery(String query) {
         Map<String, String> params = new HashMap<>();
         if (query == null || query.isBlank()) return params;
+
         String[] parts = query.split("&");
         for (String part : parts) {
-            String[] kv = part.split("=");
+            String[] kv = part.split("=", 2);
             if (kv.length == 2) params.put(kv[0], kv[1]);
         }
         return params;
     }
-
 }

@@ -42,6 +42,8 @@ public class Router implements HttpHandler {
                 match.definition.handler().handle(exchange);
             }
         } catch (Exception ex) {
+            System.err.println("Unhandled exception for " + method + " " + path);
+            ex.printStackTrace(System.err);
             JsonUtil.sendError(exchange, 500, "Internal Server Error", "INTERNAL_SERVER_ERROR");
         }
     }

@@ -42,7 +42,18 @@ public class UserController {
             JsonUtil.sendError(exchange, 403, "Cannot edit other users", "FORBIDDEN");
             return;
         }
-        ProfileUpdateRequest payload = JsonUtil.readJson(exchange.getRequestBody(), ProfileUpdateRequest.class);
+        String contentType = exchange.getRequestHeaders().getFirst("Content-Type");
+        if (contentType == null || !contentType.startsWith(JsonUtil.APPLICATION_JSON)) {
+            JsonUtil.sendError(exchange, 415, "Content-Type must be JSON", "UNSUPPORTED_MEDIA_TYPE");
+            return;
+        }
+        ProfileUpdateRequest payload;
+        try {
+            payload = JsonUtil.readJson(exchange.getRequestBody(), ProfileUpdateRequest.class);
+        } catch (IOException ex) {
+            JsonUtil.sendError(exchange, 400, "Invalid JSON", "BAD_REQUEST");
+            return;
+        }
         var updated = userService.updateProfile(userId, payload.email(), payload.favoriteGenre());
         if (updated.isEmpty()) {
             JsonUtil.sendError(exchange, 404, "User not found", "NOT_FOUND");
