@@ -31,7 +31,7 @@ public class SqlMediaRepository implements MediaRepository {
             ps.setString(3, mediaEntry.getType().name());
             if (mediaEntry.getReleaseYear() == null) ps.setNull(4, Types.INTEGER); else ps.setInt(4, mediaEntry.getReleaseYear());
             if (mediaEntry.getAgeRestriction() == null) ps.setNull(5, Types.VARCHAR); else ps.setString(5, mediaEntry.getAgeRestriction().name());
-            ps.setString(6, String.join(",", mediaEntry.getGenres()));
+            ps.setString(6, String.join(",", mediaEntry.getGenres() == null ? List.of() : mediaEntry.getGenres()));
             ps.setLong(7, mediaEntry.getCreatedByUserId());
             ps.setDouble(8, mediaEntry.getAverageRating());
             ps.setInt(9, mediaEntry.getRatingCount());
@@ -60,7 +60,7 @@ public class SqlMediaRepository implements MediaRepository {
             ps.setString(2, entry.getDescription());
             if (entry.getReleaseYear() == null) ps.setNull(3, Types.INTEGER); else ps.setInt(3, entry.getReleaseYear());
             if (entry.getAgeRestriction() == null) ps.setNull(4, Types.VARCHAR); else ps.setString(4, entry.getAgeRestriction().name());
-            ps.setString(5, String.join(",", entry.getGenres()));
+            ps.setString(5, String.join(",", entry.getGenres() == null ? List.of() : entry.getGenres()));
             ps.setDouble(6, entry.getAverageRating());
             ps.setInt(7, entry.getRatingCount());
             ps.setLong(8, entry.getId());

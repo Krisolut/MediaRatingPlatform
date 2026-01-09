@@ -52,7 +52,7 @@ public class MediaController {
     }
 
     public void create(HttpExchange exchange) throws IOException {
-        if (!requireJson(exchange)) return;
+        if (!JsonUtil.requireJson(exchange)) return;
 
         Long userId = requireAuth(exchange);
         if (userId == null) return;
@@ -85,7 +85,7 @@ public class MediaController {
     }
 
     public void update(HttpExchange exchange) throws IOException {
-        if (!requireJson(exchange)) return;
+        if (!JsonUtil.requireJson(exchange)) return;
 
         Long userId = requireAuth(exchange);
         if (userId == null) return;
@@ -131,7 +131,7 @@ public class MediaController {
     }
 
     public void rate(HttpExchange exchange) throws IOException {
-        if (!requireJson(exchange)) return;
+        if (!JsonUtil.requireJson(exchange)) return;
 
         Long userId = requireAuth(exchange);
         if (userId == null) return;
@@ -181,15 +181,6 @@ public class MediaController {
     }
 
     // ---------- Helper ----------
-
-    private boolean requireJson(HttpExchange exchange) throws IOException {
-        String contentType = exchange.getRequestHeaders().getFirst("Content-Type");
-        if (contentType == null || !contentType.startsWith(JsonUtil.APPLICATION_JSON)) {
-            JsonUtil.sendError(exchange, 415, "Content-Type must be application/json", "UNSUPPORTED_MEDIA_TYPE");
-            return false;
-        }
-        return true;
-    }
 
     private Long requireAuth(HttpExchange exchange) throws IOException {
         Long userId = AuthMiddleware.getAuthenticatedUserId(exchange);

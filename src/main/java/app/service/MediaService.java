@@ -26,8 +26,9 @@ public class MediaService {
         } catch (IllegalArgumentException ex) {
             return Optional.empty();
         }
+        List<String> safeGenres = genres == null ? List.of() : genres;
         MediaEntry mediaEntry = new MediaEntry(0L, title.trim(), description, mediaType, releaseYear,
-                ageRestriction, genres, userId, Instant.now(), 0.0, 0);
+                ageRestriction, safeGenres, userId, Instant.now(), 0.0, 0);
         return Optional.of(mediaRepository.save(mediaEntry));
     }
 

@@ -26,7 +26,8 @@ public class UserController {
     }
 
     public void profile(HttpExchange exchange) throws IOException {
-        long userId = Long.parseLong(String.valueOf(exchange.getAttribute("pathParam:userId")));
+        Long userId = requireUserId(exchange);
+        if (userId == null) return;
         var user = userService.findById(userId);
         if (user.isEmpty()) {
             JsonUtil.sendError(exchange, 404, "User not found", "NOT_FOUND");
@@ -36,17 +37,21 @@ public class UserController {
     }
 
     public void updateProfile(HttpExchange exchange) throws IOException {
-        long userId = Long.parseLong(String.valueOf(exchange.getAttribute("pathParam:userId")));
+        Long userId = requireUserId(exchange);
+        if (userId == null) return;
+
         Long requester = AuthMiddleware.getAuthenticatedUserId(exchange);
-        if (!Long.valueOf(userId).equals(requester)) {
+        if (requester == null) {
+            JsonUtil.sendError(exchange, 401, "Authentication required", "UNAUTHORIZED");
+            return;
+        }
+        if (!userId.equals(requester)) {
             JsonUtil.sendError(exchange, 403, "Cannot edit other users", "FORBIDDEN");
             return;
         }
-        String contentType = exchange.getRequestHeaders().getFirst("Content-Type");
-        if (contentType == null || !contentType.startsWith(JsonUtil.APPLICATION_JSON)) {
-            JsonUtil.sendError(exchange, 415, "Content-Type must be JSON", "UNSUPPORTED_MEDIA_TYPE");
-            return;
-        }
+
+        if (!JsonUtil.requireJson(exchange)) return;
+
         ProfileUpdateRequest payload;
         try {
             payload = JsonUtil.readJson(exchange.getRequestBody(), ProfileUpdateRequest.class);
@@ -63,12 +68,14 @@ public class UserController {
     }
 
     public void favorites(HttpExchange exchange) throws IOException {
-        long userId = Long.parseLong(String.valueOf(exchange.getAttribute("pathParam:userId")));
+        Long userId = requireUserId(exchange);
+        if (userId == null) return;
         JsonUtil.sendJsonResponse(exchange, 200, favoriteService.listFavorites(userId));
     }
 
     public void recommendations(HttpExchange exchange) throws IOException {
-        long userId = Long.parseLong(String.valueOf(exchange.getAttribute("pathParam:userId")));
+        Long userId = requireUserId(exchange);
+        if (userId == null) return;
         String type = exchange.getRequestURI().getQuery();
         String value = "genre";
         if (type != null && type.contains("content")) {
@@ -83,5 +90,19 @@ public class UserController {
 
     public void leaderboard(HttpExchange exchange) throws IOException {
         JsonUtil.sendJsonResponse(exchange, 200, leaderboardService.mostActiveUsers());
+    }
+
+    private Long requireUserId(HttpExchange exchange) throws IOException {
+        Object raw = exchange.getAttribute("pathParam:userId");
+        if (raw == null) {
+            JsonUtil.sendError(exchange, 400, "Missing userId", "BAD_REQUEST");
+            return null;
+        }
+        try {
+            return Long.parseLong(String.valueOf(raw));
+        } catch (NumberFormatException ex) {
+            JsonUtil.sendError(exchange, 400, "Invalid userId", "BAD_REQUEST");
+            return null;
+        }
     }
 }

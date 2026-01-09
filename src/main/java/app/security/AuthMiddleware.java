@@ -24,8 +24,9 @@ public class AuthMiddleware {
                 return;
             }
 
-            String[] segments = authHeader.split(" ");
-            if(segments.length != 2 || !"Bearer".equalsIgnoreCase(segments[0])) {
+            String normalized = authHeader.replace('\u00A0', ' ').trim();
+            String[] segments = normalized.split("\\s+", 2);
+            if (segments.length != 2 || !"Bearer".equalsIgnoreCase(segments[0])) {
                 JsonUtil.sendError(exchange, 401, "Invalid Auth Header", "UNAUTHORIZED");
                 return;
             }
@@ -45,6 +46,8 @@ public class AuthMiddleware {
             next.handle(exchange);
         } catch (JwtService.TokenVerificationException ex) {
             JsonUtil.sendError(exchange, 401, ex.getMessage(), "UNAUTHORIZED");
+        } catch (NumberFormatException ex) {
+            JsonUtil.sendError(exchange, 401, "Invalid token subject", "UNAUTHORIZED");
         }
     }
 

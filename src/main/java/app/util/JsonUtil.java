@@ -31,6 +31,19 @@ public final class JsonUtil {
         return MAPPER.readValue(inputStream, clazz);
     }
 
+    public static boolean isJsonRequest(HttpExchange exchange) {
+        String contentType = exchange.getRequestHeaders().getFirst("Content-Type");
+        return contentType != null && contentType.startsWith(APPLICATION_JSON);
+    }
+
+    public static boolean requireJson(HttpExchange exchange) throws IOException {
+        if (!isJsonRequest(exchange)) {
+            sendError(exchange, 415, "Content-Type must be application/json", "UNSUPPORTED_MEDIA_TYPE");
+            return false;
+        }
+        return true;
+    }
+
     // Sendet eine JSON
     public static void sendJsonResponse(HttpExchange exchange, int statusCode, Object body) throws IOException {
         byte[] payload = serialize(body);
