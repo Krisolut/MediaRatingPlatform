@@ -34,7 +34,7 @@ public class LeaderboardService {
                 .reversed()
                 .thenComparing(u -> activity.getOrDefault(u.getId(), ActivityStats.EMPTY).lastActivity, Comparator.reverseOrder());
 
-        return userRepository.findAll().stream()
+        return userRepository.findAllWithStats().stream()
                 .filter(u -> activity.containsKey(u.getId()))
                 .sorted(comparator)
                 .toList();

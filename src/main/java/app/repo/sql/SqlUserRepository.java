@@ -48,6 +48,34 @@ public class SqlUserRepository implements UserRepository {
     }
 
     @Override
+    public Optional<User> findByIdWithStats(long id) {
+        String sql = """
+                SELECT u.id,
+                       u.username,
+                       u.password_hash,
+                       u.email,
+                       u.favorite_genre,
+                       u.created_at,
+                       COUNT(r.id) AS total_ratings,
+                       COALESCE(AVG(r.stars), 0.0) AS average_given_rating
+                FROM users u
+                LEFT JOIN ratings r ON r.user_id = u.id
+                WHERE u.id = ?
+                GROUP BY u.id, u.username, u.password_hash, u.email, u.favorite_genre, u.created_at
+                """;
+        try (Connection conn = database.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return Optional.of(mapRowWithStats(rs));
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return Optional.empty();
+    }
+
+    @Override
     public List<User> findAll() {
         String sql = "SELECT * FROM users";
         List<User> users = new ArrayList<>();
@@ -55,6 +83,32 @@ public class SqlUserRepository implements UserRepository {
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) users.add(mapRow(rs));
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return users;
+    }
+
+    @Override
+    public List<User> findAllWithStats() {
+        String sql = """
+                SELECT u.id,
+                       u.username,
+                       u.password_hash,
+                       u.email,
+                       u.favorite_genre,
+                       u.created_at,
+                       COUNT(r.id) AS total_ratings,
+                       COALESCE(AVG(r.stars), 0.0) AS average_given_rating
+                FROM users u
+                LEFT JOIN ratings r ON r.user_id = u.id
+                GROUP BY u.id, u.username, u.password_hash, u.email, u.favorite_genre, u.created_at
+                """;
+        List<User> users = new ArrayList<>();
+        try (Connection conn = database.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) users.add(mapRowWithStats(rs));
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -90,14 +144,12 @@ public class SqlUserRepository implements UserRepository {
 
     @Override
     public User update(User user) {
-        String sql = "UPDATE users SET email = ?, favorite_genre = ?, total_ratings = ?, average_given_rating = ? WHERE id = ?";
+        String sql = "UPDATE users SET email = ?, favorite_genre = ? WHERE id = ?";
         try (Connection conn = database.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, user.getEmail());
             ps.setString(2, user.getFavoriteGenre());
-            ps.setInt(3, user.getTotalRatings());
-            ps.setDouble(4, user.getAverageGivenRating());
-            ps.setLong(5, user.getId());
+            ps.setLong(3, user.getId());
             ps.executeUpdate();
             return user;
         } catch (SQLException e) {
@@ -106,6 +158,19 @@ public class SqlUserRepository implements UserRepository {
     }
 
     private User mapRow(ResultSet rs) throws SQLException {
+        return new User(
+                rs.getLong("id"),
+                rs.getString("username"),
+                rs.getString("password_hash"),
+                rs.getString("email"),
+                rs.getString("favorite_genre"),
+                rs.getInt("total_ratings"),
+                rs.getDouble("average_given_rating"),
+                rs.getTimestamp("created_at").toInstant()
+        );
+    }
+
+    private User mapRowWithStats(ResultSet rs) throws SQLException {
         return new User(
                 rs.getLong("id"),
                 rs.getString("username"),

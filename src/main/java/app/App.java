@@ -56,7 +56,7 @@ public class App {
         FavoriteService favoriteService = new FavoriteService(favoriteRepository, mediaRepository);
         RecommendationService recommendationService = new RecommendationService(mediaRepository, ratingRepository);
         LeaderboardService leaderboardService = new LeaderboardService(userRepository, ratingRepository);
-        UserService userService = new UserService(userRepository, ratingRepository);
+        UserService userService = new UserService(userRepository);
 
         AuthController authController = new AuthController(authService);
         MediaController mediaController = new MediaController(mediaService, ratingService, favoriteService);

@@ -28,7 +28,7 @@ public class UserController {
     public void profile(HttpExchange exchange) throws IOException {
         Long userId = requireUserId(exchange);
         if (userId == null) return;
-        var user = userService.findById(userId);
+        var user = userService.findByIdWithStats(userId);
         if (user.isEmpty()) {
             JsonUtil.sendError(exchange, 404, "User not found", "NOT_FOUND");
             return;

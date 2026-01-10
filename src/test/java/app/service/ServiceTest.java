@@ -56,7 +56,7 @@ public class ServiceTest {
         favoriteService = new FavoriteService(favoriteRepository, mediaRepository);
         recommendationService = new RecommendationService(mediaRepository, ratingRepository);
         leaderboardService = new LeaderboardService(userRepository, ratingRepository);
-        userService = new UserService(userRepository, ratingRepository);
+        userService = new UserService(userRepository);
     }
 
     private void clearTables() throws SQLException {
@@ -248,7 +248,7 @@ public class ServiceTest {
         MediaEntry media = createMedia("Film", user.getId());
         ratingService.upsertRating(media.getId(), user.getId(), 4, "good");
         ratingService.upsertRating(media.getId(), user.getId(), 5, "great");
-        User updated = userService.updateStatistics(user.getId());
+        User updated = userService.findByIdWithStats(user.getId()).orElseThrow();
         assertEquals(1, updated.getTotalRatings());
         assertEquals(5.0, updated.getAverageGivenRating());
     }
