@@ -193,10 +193,6 @@ Authorization: Bearer {{token1}}
 POST {{base}}/media/{{mediaIdA}}/favorite
 Authorization: Bearer {{token1}}
 
-### Unfavorite media A as user1
-DELETE {{base}}/media/{{mediaIdA}}/favorite
-Authorization: Bearer {{token1}}
-
 ### ------------------------------------------------------------------
 ### USER: Profile + UpdateProfile + Favorites + Recommendations
 ### ------------------------------------------------------------------
@@ -218,6 +214,10 @@ Authorization: Bearer {{token1}}
 
 ### Recommendations (user1)
 GET {{base}}/users/{{userId1}}/recommendations
+Authorization: Bearer {{token1}}
+
+### Unfavorite media A as user1
+DELETE {{base}}/media/{{mediaIdA}}/favorite
 Authorization: Bearer {{token1}}
 
 ### ------------------------------------------------------------------
